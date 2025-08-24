@@ -275,6 +275,38 @@ SET hnsw.ef_search = 100;
 
 A higher value provides better recall at the cost of speed.
 
+<details>
+<summary><strong>HNSW quick tuning (cheat sheet)</strong></summary>
+
+**Defaults (as documented)**
+
+- Build (index options): `m = 16`, `ef_construction = 64`
+- Query (session setting): `hnsw.ef_search = 40`
+
+**Balanced starting points (practical defaults)**
+
+- Build: `WITH (m = 16, ef_construction = 200)`
+- Query: `SET hnsw.ef_search = 64`  
+  → Increase values for higher recall; decrease for speed/memory.
+
+**Rough guide**
+
+| Goal        | m   | ef_construction | ef_search |
+| ----------- | --- | --------------- | --------: |
+| Low latency | 8   | 100             |        32 |
+| Balanced    | 16  | 200             |        64 |
+| High recall | 32  | 400             |       128 |
+
+**Tips**
+
+- Higher `m` / `ef_*` → better recall, but more memory & longer build time.
+- Benchmark on your own data; distributions vary.
+- With filtering (WHERE), you often need higher `hnsw.ef_search`; see
+  [Filtering](#filtering) and [Iterative Index Scans](#iterative-index-scans).
+- For large builds, watch memory; see **Index Build Time** (e.g., `maintenance_work_mem`).
+
+</details>
+
 Use `SET LOCAL` inside a transaction to set it for a single query
 
 ```sql
@@ -333,7 +365,7 @@ An IVFFlat index divides vectors into lists, and then searches a subset of those
 
 Three keys to achieving good recall are:
 
-1. Create the index *after* the table has some data
+1. Create the index _after_ the table has some data
 2. Choose an appropriate number of lists - a good place to start is `rows / 1000` for up to 1M rows and `sqrt(rows)` for over 1M rows
 3. When querying, specify an appropriate number of [probes](#query-options) (higher is better for recall, lower is better for speed) - a good place to start is `sqrt(lists)`
 
@@ -443,7 +475,7 @@ Exact indexes work well for conditions that match a low percentage of rows. Othe
 CREATE INDEX ON items USING hnsw (embedding vector_l2_ops);
 ```
 
-With approximate indexes, filtering is applied *after* the index is scanned. If a condition matches 10% of rows, with HNSW and the default `hnsw.ef_search` of 40, only 4 rows will match on average. For more rows, increase `hnsw.ef_search`.
+With approximate indexes, filtering is applied _after_ the index is scanned. If a condition matches 10% of rows, with HNSW and the default `hnsw.ef_search` of 40, only 4 rows will match on average. For more rows, increase `hnsw.ef_search`.
 
 ```sql
 SET hnsw.ef_search = 200;
@@ -469,7 +501,7 @@ CREATE TABLE items (embedding vector(3), category_id int) PARTITION BY LIST(cate
 
 ## Iterative Index Scans
 
-With approximate indexes, queries with filtering can return less results since filtering is applied *after* the index is scanned. Starting with 0.8.0, you can enable iterative index scans, which will automatically scan more of the index until enough results are found (or it reaches `hnsw.max_scan_tuples` or `ivfflat.max_probes`).
+With approximate indexes, queries with filtering can return less results since filtering is applied _after_ the index is scanned. Starting with 0.8.0, you can enable iterative index scans, which will automatically scan more of the index until enough results are found (or it reaches `hnsw.max_scan_tuples` or `ivfflat.max_probes`).
 
 Iterative scans can use strict or relaxed ordering.
 
@@ -681,7 +713,7 @@ Use `COPY` for bulk loading data ([example](https://github.com/pgvector/pgvector
 COPY items (embedding) FROM STDIN WITH (FORMAT BINARY);
 ```
 
-Add any indexes *after* loading the initial data for best performance.
+Add any indexes _after_ loading the initial data for best performance.
 
 ### Indexing
 
@@ -769,36 +801,36 @@ Scale horizontally with [replicas](https://www.postgresql.org/docs/current/hot-s
 
 Use pgvector from any language with a Postgres client. You can even generate and store vectors in one language and query them in another.
 
-Language | Libraries / Examples
---- | ---
-C | [pgvector-c](https://github.com/pgvector/pgvector-c)
-C++ | [pgvector-cpp](https://github.com/pgvector/pgvector-cpp)
-C#, F#, Visual Basic | [pgvector-dotnet](https://github.com/pgvector/pgvector-dotnet)
-Crystal | [pgvector-crystal](https://github.com/pgvector/pgvector-crystal)
-D | [pgvector-d](https://github.com/pgvector/pgvector-d)
-Dart | [pgvector-dart](https://github.com/pgvector/pgvector-dart)
-Elixir | [pgvector-elixir](https://github.com/pgvector/pgvector-elixir)
-Erlang | [pgvector-erlang](https://github.com/pgvector/pgvector-erlang)
-Fortran | [pgvector-fortran](https://github.com/pgvector/pgvector-fortran)
-Gleam | [pgvector-gleam](https://github.com/pgvector/pgvector-gleam)
-Go | [pgvector-go](https://github.com/pgvector/pgvector-go)
-Haskell | [pgvector-haskell](https://github.com/pgvector/pgvector-haskell)
-Java, Kotlin, Groovy, Scala | [pgvector-java](https://github.com/pgvector/pgvector-java)
-JavaScript, TypeScript | [pgvector-node](https://github.com/pgvector/pgvector-node)
-Julia | [Pgvector.jl](https://github.com/pgvector/Pgvector.jl)
-Lisp | [pgvector-lisp](https://github.com/pgvector/pgvector-lisp)
-Lua | [pgvector-lua](https://github.com/pgvector/pgvector-lua)
-Nim | [pgvector-nim](https://github.com/pgvector/pgvector-nim)
-OCaml | [pgvector-ocaml](https://github.com/pgvector/pgvector-ocaml)
-Perl | [pgvector-perl](https://github.com/pgvector/pgvector-perl)
-PHP | [pgvector-php](https://github.com/pgvector/pgvector-php)
-Python | [pgvector-python](https://github.com/pgvector/pgvector-python)
-R | [pgvector-r](https://github.com/pgvector/pgvector-r)
-Raku | [pgvector-raku](https://github.com/pgvector/pgvector-raku)
-Ruby | [pgvector-ruby](https://github.com/pgvector/pgvector-ruby), [Neighbor](https://github.com/ankane/neighbor)
-Rust | [pgvector-rust](https://github.com/pgvector/pgvector-rust)
-Swift | [pgvector-swift](https://github.com/pgvector/pgvector-swift)
-Zig | [pgvector-zig](https://github.com/pgvector/pgvector-zig)
+| Language                    | Libraries / Examples                                                                                       |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| C                           | [pgvector-c](https://github.com/pgvector/pgvector-c)                                                       |
+| C++                         | [pgvector-cpp](https://github.com/pgvector/pgvector-cpp)                                                   |
+| C#, F#, Visual Basic        | [pgvector-dotnet](https://github.com/pgvector/pgvector-dotnet)                                             |
+| Crystal                     | [pgvector-crystal](https://github.com/pgvector/pgvector-crystal)                                           |
+| D                           | [pgvector-d](https://github.com/pgvector/pgvector-d)                                                       |
+| Dart                        | [pgvector-dart](https://github.com/pgvector/pgvector-dart)                                                 |
+| Elixir                      | [pgvector-elixir](https://github.com/pgvector/pgvector-elixir)                                             |
+| Erlang                      | [pgvector-erlang](https://github.com/pgvector/pgvector-erlang)                                             |
+| Fortran                     | [pgvector-fortran](https://github.com/pgvector/pgvector-fortran)                                           |
+| Gleam                       | [pgvector-gleam](https://github.com/pgvector/pgvector-gleam)                                               |
+| Go                          | [pgvector-go](https://github.com/pgvector/pgvector-go)                                                     |
+| Haskell                     | [pgvector-haskell](https://github.com/pgvector/pgvector-haskell)                                           |
+| Java, Kotlin, Groovy, Scala | [pgvector-java](https://github.com/pgvector/pgvector-java)                                                 |
+| JavaScript, TypeScript      | [pgvector-node](https://github.com/pgvector/pgvector-node)                                                 |
+| Julia                       | [Pgvector.jl](https://github.com/pgvector/Pgvector.jl)                                                     |
+| Lisp                        | [pgvector-lisp](https://github.com/pgvector/pgvector-lisp)                                                 |
+| Lua                         | [pgvector-lua](https://github.com/pgvector/pgvector-lua)                                                   |
+| Nim                         | [pgvector-nim](https://github.com/pgvector/pgvector-nim)                                                   |
+| OCaml                       | [pgvector-ocaml](https://github.com/pgvector/pgvector-ocaml)                                               |
+| Perl                        | [pgvector-perl](https://github.com/pgvector/pgvector-perl)                                                 |
+| PHP                         | [pgvector-php](https://github.com/pgvector/pgvector-php)                                                   |
+| Python                      | [pgvector-python](https://github.com/pgvector/pgvector-python)                                             |
+| R                           | [pgvector-r](https://github.com/pgvector/pgvector-r)                                                       |
+| Raku                        | [pgvector-raku](https://github.com/pgvector/pgvector-raku)                                                 |
+| Ruby                        | [pgvector-ruby](https://github.com/pgvector/pgvector-ruby), [Neighbor](https://github.com/ankane/neighbor) |
+| Rust                        | [pgvector-rust](https://github.com/pgvector/pgvector-rust)                                                 |
+| Swift                       | [pgvector-swift](https://github.com/pgvector/pgvector-swift)                                               |
+| Zig                         | [pgvector-zig](https://github.com/pgvector/pgvector-zig)                                                   |
 
 ## Frequently Asked Questions
 
@@ -945,37 +977,37 @@ Each vector takes `4 * dimensions + 8` bytes of storage. Each element is a singl
 
 ### Vector Operators
 
-Operator | Description | Added
---- | --- | ---
-\+ | element-wise addition |
-\- | element-wise subtraction |
-\* | element-wise multiplication | 0.5.0
-\|\| | concatenate | 0.7.0
-<-> | Euclidean distance |
-<#> | negative inner product |
-<=> | cosine distance |
-<+> | taxicab distance | 0.7.0
+| Operator | Description                 | Added |
+| -------- | --------------------------- | ----- |
+| \+       | element-wise addition       |
+| \-       | element-wise subtraction    |
+| \*       | element-wise multiplication | 0.5.0 |
+| \|\|     | concatenate                 | 0.7.0 |
+| <->      | Euclidean distance          |
+| <#>      | negative inner product      |
+| <=>      | cosine distance             |
+| <+>      | taxicab distance            | 0.7.0 |
 
 ### Vector Functions
 
-Function | Description | Added
---- | --- | ---
-binary_quantize(vector) → bit | binary quantize | 0.7.0
-cosine_distance(vector, vector) → double precision | cosine distance |
-inner_product(vector, vector) → double precision | inner product |
-l1_distance(vector, vector) → double precision | taxicab distance | 0.5.0
-l2_distance(vector, vector) → double precision | Euclidean distance |
-l2_normalize(vector) → vector | Normalize with Euclidean norm | 0.7.0
-subvector(vector, integer, integer) → vector | subvector | 0.7.0
-vector_dims(vector) → integer | number of dimensions |
-vector_norm(vector) → double precision | Euclidean norm |
+| Function                                           | Description                   | Added |
+| -------------------------------------------------- | ----------------------------- | ----- |
+| binary_quantize(vector) → bit                      | binary quantize               | 0.7.0 |
+| cosine_distance(vector, vector) → double precision | cosine distance               |
+| inner_product(vector, vector) → double precision   | inner product                 |
+| l1_distance(vector, vector) → double precision     | taxicab distance              | 0.5.0 |
+| l2_distance(vector, vector) → double precision     | Euclidean distance            |
+| l2_normalize(vector) → vector                      | Normalize with Euclidean norm | 0.7.0 |
+| subvector(vector, integer, integer) → vector       | subvector                     | 0.7.0 |
+| vector_dims(vector) → integer                      | number of dimensions          |
+| vector_norm(vector) → double precision             | Euclidean norm                |
 
 ### Vector Aggregate Functions
 
-Function | Description | Added
---- | --- | ---
-avg(vector) → vector | average |
-sum(vector) → vector | sum | 0.5.0
+| Function             | Description | Added |
+| -------------------- | ----------- | ----- |
+| avg(vector) → vector | average     |
+| sum(vector) → vector | sum         | 0.5.0 |
 
 ### Halfvec Type
 
@@ -983,37 +1015,37 @@ Each half vector takes `2 * dimensions + 8` bytes of storage. Each element is a 
 
 ### Halfvec Operators
 
-Operator | Description | Added
---- | --- | ---
-\+ | element-wise addition | 0.7.0
-\- | element-wise subtraction | 0.7.0
-\* | element-wise multiplication | 0.7.0
-\|\| | concatenate | 0.7.0
-<-> | Euclidean distance | 0.7.0
-<#> | negative inner product | 0.7.0
-<=> | cosine distance | 0.7.0
-<+> | taxicab distance | 0.7.0
+| Operator | Description                 | Added |
+| -------- | --------------------------- | ----- |
+| \+       | element-wise addition       | 0.7.0 |
+| \-       | element-wise subtraction    | 0.7.0 |
+| \*       | element-wise multiplication | 0.7.0 |
+| \|\|     | concatenate                 | 0.7.0 |
+| <->      | Euclidean distance          | 0.7.0 |
+| <#>      | negative inner product      | 0.7.0 |
+| <=>      | cosine distance             | 0.7.0 |
+| <+>      | taxicab distance            | 0.7.0 |
 
 ### Halfvec Functions
 
-Function | Description | Added
---- | --- | ---
-binary_quantize(halfvec) → bit | binary quantize | 0.7.0
-cosine_distance(halfvec, halfvec) → double precision | cosine distance | 0.7.0
-inner_product(halfvec, halfvec) → double precision | inner product | 0.7.0
-l1_distance(halfvec, halfvec) → double precision | taxicab distance | 0.7.0
-l2_distance(halfvec, halfvec) → double precision | Euclidean distance | 0.7.0
-l2_norm(halfvec) → double precision | Euclidean norm | 0.7.0
-l2_normalize(halfvec) → halfvec | Normalize with Euclidean norm | 0.7.0
-subvector(halfvec, integer, integer) → halfvec | subvector | 0.7.0
-vector_dims(halfvec) → integer | number of dimensions | 0.7.0
+| Function                                             | Description                   | Added |
+| ---------------------------------------------------- | ----------------------------- | ----- |
+| binary_quantize(halfvec) → bit                       | binary quantize               | 0.7.0 |
+| cosine_distance(halfvec, halfvec) → double precision | cosine distance               | 0.7.0 |
+| inner_product(halfvec, halfvec) → double precision   | inner product                 | 0.7.0 |
+| l1_distance(halfvec, halfvec) → double precision     | taxicab distance              | 0.7.0 |
+| l2_distance(halfvec, halfvec) → double precision     | Euclidean distance            | 0.7.0 |
+| l2_norm(halfvec) → double precision                  | Euclidean norm                | 0.7.0 |
+| l2_normalize(halfvec) → halfvec                      | Normalize with Euclidean norm | 0.7.0 |
+| subvector(halfvec, integer, integer) → halfvec       | subvector                     | 0.7.0 |
+| vector_dims(halfvec) → integer                       | number of dimensions          | 0.7.0 |
 
 ### Halfvec Aggregate Functions
 
-Function | Description | Added
---- | --- | ---
-avg(halfvec) → halfvec | average | 0.7.0
-sum(halfvec) → halfvec | sum | 0.7.0
+| Function               | Description | Added |
+| ---------------------- | ----------- | ----- |
+| avg(halfvec) → halfvec | average     | 0.7.0 |
+| sum(halfvec) → halfvec | sum         | 0.7.0 |
 
 ### Bit Type
 
@@ -1021,17 +1053,17 @@ Each bit vector takes `dimensions / 8 + 8` bytes of storage. See the [Postgres d
 
 ### Bit Operators
 
-Operator | Description | Added
---- | --- | ---
-<~> | Hamming distance | 0.7.0
-<%> | Jaccard distance | 0.7.0
+| Operator | Description      | Added |
+| -------- | ---------------- | ----- |
+| <~>      | Hamming distance | 0.7.0 |
+| <%>      | Jaccard distance | 0.7.0 |
 
 ### Bit Functions
 
-Function | Description | Added
---- | --- | ---
-hamming_distance(bit, bit) → double precision | Hamming distance | 0.7.0
-jaccard_distance(bit, bit) → double precision | Jaccard distance | 0.7.0
+| Function                                      | Description      | Added |
+| --------------------------------------------- | ---------------- | ----- |
+| hamming_distance(bit, bit) → double precision | Hamming distance | 0.7.0 |
+| jaccard_distance(bit, bit) → double precision | Jaccard distance | 0.7.0 |
 
 ### Sparsevec Type
 
@@ -1039,23 +1071,23 @@ Each sparse vector takes `8 * non-zero elements + 16` bytes of storage. Each ele
 
 ### Sparsevec Operators
 
-Operator | Description | Added
---- | --- | ---
-<-> | Euclidean distance | 0.7.0
-<#> | negative inner product | 0.7.0
-<=> | cosine distance | 0.7.0
-<+> | taxicab distance | 0.7.0
+| Operator | Description            | Added |
+| -------- | ---------------------- | ----- |
+| <->      | Euclidean distance     | 0.7.0 |
+| <#>      | negative inner product | 0.7.0 |
+| <=>      | cosine distance        | 0.7.0 |
+| <+>      | taxicab distance       | 0.7.0 |
 
 ### Sparsevec Functions
 
-Function | Description | Added
---- | --- | ---
-cosine_distance(sparsevec, sparsevec) → double precision | cosine distance | 0.7.0
-inner_product(sparsevec, sparsevec) → double precision | inner product | 0.7.0
-l1_distance(sparsevec, sparsevec) → double precision | taxicab distance | 0.7.0
-l2_distance(sparsevec, sparsevec) → double precision | Euclidean distance | 0.7.0
-l2_norm(sparsevec) → double precision | Euclidean norm | 0.7.0
-l2_normalize(sparsevec) → sparsevec | Normalize with Euclidean norm | 0.7.0
+| Function                                                 | Description                   | Added |
+| -------------------------------------------------------- | ----------------------------- | ----- |
+| cosine_distance(sparsevec, sparsevec) → double precision | cosine distance               | 0.7.0 |
+| inner_product(sparsevec, sparsevec) → double precision   | inner product                 | 0.7.0 |
+| l1_distance(sparsevec, sparsevec) → double precision     | taxicab distance              | 0.7.0 |
+| l2_distance(sparsevec, sparsevec) → double precision     | Euclidean distance            | 0.7.0 |
+| l2_norm(sparsevec) → double precision                    | Euclidean norm                | 0.7.0 |
+| l2_normalize(sparsevec) → sparsevec                      | Normalize with Euclidean norm | 0.7.0 |
 
 ## Installation Notes - Linux and Mac
 
